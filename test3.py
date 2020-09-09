@@ -19,6 +19,7 @@ import time
 import matplotlib as mpl
 from matplotlib.figure import Figure
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
+import pyqtgraph as pg
 import librosa.display
 chunk = 1024
 mpl.rcParams['agg.path.chunksize'] = 40000
@@ -34,20 +35,24 @@ def change_format(path):
 
 class Mydemo(FigureCanvas):
 
-    def __init__(self, parent=None, width=14, height=5, dpi=100):
+    def __init__(self, parent=None, width=10000, height=5, dpi=100):
         plt.rcParams['font.family'] = ['SimHei']
         plt.rcParams['axes.unicode_minus'] = False
-
+        plt.axis('off')
         self.fig = Figure(figsize=(width, height), dpi=dpi)
-        #self.axes = self.fig.add_subplot(2, 1, 1)
-        #self.axes1 = self.fig.add_subplot(2, 1, 2)
-        self.axes = self.fig.add_subplot(111)
+        plt.subplots_adjust(left=0.0, bottom=0.0, top=3.0, right=1)
+
+        self.axes = self.fig.add_subplot(3, 1, 1)
+        self.axes.xaxis.set_major_locator(MultipleLocator(10))
+        self.axes1 = self.fig.add_subplot(3, 1, 2)
+        self.axes2 = self.fig.add_subplot(3,1,3)
+        #self.axes.yticks([])
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
 
-        FigureCanvas.setSizePolicy(self,
-                                   QSizePolicy.Expanding,
-                                   QSizePolicy.Expanding)
+        #FigureCanvas.setSizePolicy(self,
+                                   #QSizePolicy.Expanding,
+                                   #QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 class MyWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -58,7 +63,10 @@ class MyWindow(QMainWindow, Ui_MainWindow):
     def initialize(self):
         self.setWindowTitle("音乐播放器^_^")
         self.setWindowIcon(QIcon('icon/音乐.png'))
+        self.music_flag.setVisible(False)
+        self.music_flag.setText("0")
         self.fileName = ""
+        self.dbtxt = ""
         self.cur_song = ''
         self.is_pause = True
         self.y_temp = np.zeros(chunk)
@@ -73,16 +81,22 @@ class MyWindow(QMainWindow, Ui_MainWindow):
         self.player.setVolume(50.0)
         self.music = []
         self.sr = 0
+        self.time = []
         #画图测试
-        self.widget = Mydemo(width=500, height=5, dpi=100)
+        self.widget = Mydemo(width=100000, height=5, dpi=100)
         self.verticalLayout.addWidget(self.widget)
+        self.setLayout(self.verticalLayout)
         #data = list(range(1000))
+        self.beatnum = 0
+        self.downbeatnum = 0
+        self.wavedata = []
         #self.widget.axes.plot(data)
         #print("start")
         self.cnt = 0
         #打开文件
         self.pushButton.clicked.connect(lambda: self.btn_openFile_click())
         self.startbtn.clicked.connect(lambda:self.btn_start_click())
+        self.db_btn.clicked.connect(lambda :self.btn_opendbtxt_click())
         #设置音乐进度
         self.slider_time.sliderMoved[int].connect(lambda: self.player.setPosition(self.slider_time.value()))
 
@@ -111,16 +125,19 @@ class MyWindow(QMainWindow, Ui_MainWindow):
         wave_data.shape = -1, 2
         wave_data = wave_data.T
         time = np.arange(0, nframes) * (1.0 / framerate)
+        self.time = time
         # 绘制波形
         # plt.subplot(211)
         #plt.plot(time, wave_data[0])
         # plt.subplot(212)
         self.cnt = len(time)
-        self.widget.axes.plot(time, wave_data[0])
+        self.wavedata = wave_data[0]
+        self.widget.axes.plot(time, wave_data[0],'b')
+        #print("time = ",self.time)
         #print(time)
         #ax = self.widget.axes.plot.xlim(0,500)
-        self.widget.axes.xaxis.set_minor_locator(xminorLocator)
-        self.widget.axes.axvline(self.player.position() / 1000)
+        #self.widget.axes.xaxis.set_minor_locator(xminorLocator)
+        #self.widget.axes.axvline(self.player.position() / 1000)
         self.widget.draw()
 
         #print("end")
@@ -170,28 +187,70 @@ class MyWindow(QMainWindow, Ui_MainWindow):
             self.player.pause()
             self.startbtn.setText('播放')
 
+    def btn_opendbtxt_click(self):
+        self.dbtxt, filetype = QFileDialog.getOpenFileName(self, '选择文件', '', '文本文件 (*.txt)')
+        if len(self.dbtxt) == 0:
+            return
+        data = np.loadtxt(self.dbtxt)
+        self.data = data
+        self.beatnum = len(data)
+        #print(data[:,0])
+        idx = np.argwhere(data[:,1]==1)
+        self.idx = idx
+        self.downbeatnum = len(idx)
+        for i in range(len(data)):
+            self.widget.axes1.axvline(data[i,0],color='r')
+            if i in idx:
+                self.widget.axes2.axvline(data[i,0],color='g')
+                #self.widget.axes1.axvline(data[i, 0], color='black')
+        #self.widget.axes2.scatter(data[idx,0],data[idx,1],s=1.0)
+        #self.widget.axes1.plot(data[:,0],data[:,1],'g')
+        self.widget.draw()
+        #print(self.dbtxt)
     def player_timer(self):
         self.slider_time.setMinimum(0)
         self.slider_time.setMaximum(self.player.duration())
-        self.slider_time.setValue(self.slider_time.value() + 1000)
-
+        if self.is_pause == False:
+            self.slider_time.setValue(self.slider_time.value() + 1000)
+        #print("slider time",self.slider_time.value())
         self.lab_time.setText(time.strftime('%M:%S', time.localtime(self.player.position() / 1000)))
         #self.show_lab.setText(str(self.player.position()))
-        #print("test",self.player.position()/1000)
-        #print(time.strftime('%M:%S', time.localtime(self.player.position() / 1000)))
         #self.show_tim_lab.setText(str(self.slider_time.value()))
-        try:
-            self.cnt = (self.player.position())/(self.player.duration())
-            #print("cnt=",self.cnt)
-            
-            self.widget.axes.axvline(self.player.position()/1000)
-            print("time", self.player.position()/1000)
-            self.widget.draw()
-        except:
-            print("dur time",self.player.position())
+        print(self.music_flag.text())
+        music_num = (self.player.position()/1000)//100+1
+        print(self.player.duration()/1000)
+        if float(self.music_flag.text())!=music_num and len(self.time)!=0:
+            time_idx = np.argwhere(self.time<=music_num*100)
+            self.widget.axes.lines.remove(self.widget.axes.lines[0])
+            self.widget.axes.plot(self.time[time_idx],self.wavedata[time_idx],'b')
+            self.widget.axes.xlim(music_num*100-100,music_num*100)
+            self.music_flag.setText(str(music_num))
+            print("music num",music_num)
+        # if len(self.widget.axes.lines)>1:
+        #     #print("line1",self.widget.axes.lines[1])
+        #     self.widget.axes.lines.remove(self.widget.axes.lines[1])
+        #     #print(self.widget.axes.lines[1])
+        # if len(self.widget.axes1.lines)>self.beatnum:
+        #     self.widget.axes1.lines.remove(self.widget.axes1.lines[self.beatnum])
+        # if len(self.widget.axes2.lines)>self.downbeatnum:
+        #     self.widget.axes2.lines.remove(self.widget.axes2.lines[self.downbeatnum])
+            #print("axes2",len(self.widget.axes2.lines))
+            #print("axe1",len(self.widget.axes1.lines))
+        # self.widget.axes.axvline(self.player.position()/1000)
+        # self.widget.axes1.axvline(self.player.position() / 1000)
+        # self.widget.axes2.axvline(self.player.position() / 1000)
+            #print(self.widget.axes.lines)
+            #print("time", self.player.position()/1000)
+        #print("beatnum",self.beatnum)
+        #print("downbeatnum",self.downbeatnum)
+        self.widget.draw()
+
+        #print(len(self.widget.axes.lines))
+        #if self.widget.axes.lines[1] != None:
+            #print("line1",self.widget.axes.lines[1])
 
         self.lab_duration.setText(time.strftime('%M:%S', time.localtime(self.player.duration() / 1000)))
-
+        #print('total time=',self.player.duration()/1000)
         # 进度条满了之后回零
         if self.player.duration() == self.slider_time.value():
             self.slider_time.setValue(0)
