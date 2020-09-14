@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1161</width>
-    <height>776</height>
+    <width>2180</width>
+    <height>538</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -40,10 +40,10 @@
    <widget class="QWidget" name="verticalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>50</x>
+      <x>-10</x>
       <y>50</y>
-      <width>951</width>
-      <height>351</height>
+      <width>2181</width>
+      <height>371</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout"/>
@@ -64,8 +64,8 @@
    <widget class="QLabel" name="lab_time">
     <property name="geometry">
      <rect>
-      <x>960</x>
-      <y>410</y>
+      <x>2110</x>
+      <y>460</y>
       <width>58</width>
       <height>16</height>
      </rect>
@@ -77,8 +77,8 @@
    <widget class="QLabel" name="lab_duration">
     <property name="geometry">
      <rect>
-      <x>40</x>
-      <y>400</y>
+      <x>30</x>
+      <y>460</y>
       <width>58</width>
       <height>16</height>
      </rect>
@@ -87,43 +87,40 @@
      <string>00:00</string>
     </property>
    </widget>
-   <widget class="QLabel" name="show_lab">
-    <property name="geometry">
-     <rect>
-      <x>50</x>
-      <y>520</y>
-      <width>58</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>TextLabel</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="show_tim_lab">
-    <property name="geometry">
-     <rect>
-      <x>940</x>
-      <y>550</y>
-      <width>58</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>TextLabel</string>
-    </property>
-   </widget>
    <widget class="QSlider" name="slider_time">
     <property name="geometry">
      <rect>
       <x>40</x>
-      <y>400</y>
-      <width>961</width>
+      <y>440</y>
+      <width>2121</width>
       <height>22</height>
      </rect>
     </property>
     <property name="orientation">
      <enum>Qt::Horizontal</enum>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="db_btn">
+    <property name="geometry">
+     <rect>
+      <x>760</x>
+      <y>20</y>
+      <width>112</width>
+      <height>32</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>导入downbeat</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="music_flag">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>10</y>
+      <width>113</width>
+      <height>21</height>
+     </rect>
     </property>
    </widget>
   </widget>
@@ -132,7 +129,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1161</width>
+     <width>2180</width>
      <height>22</height>
     </rect>
    </property>

@@ -9,6 +9,7 @@ from matplotlib.animation import FuncAnimation
 from musciUI import Ui_MainWindow
 from scipy.signal import detrend
 from pydub import AudioSegment
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import struct
@@ -41,8 +42,9 @@ class Mydemo(FigureCanvas):
         plt.axis('off')
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         plt.subplots_adjust(left=0.0, bottom=0.0, top=3.0, right=1)
-
+        #plt.xlim(100,200)
         self.axes = self.fig.add_subplot(3, 1, 1)
+        #self.axes.set_xlim([0,100])
         self.axes.xaxis.set_major_locator(MultipleLocator(10))
         self.axes1 = self.fig.add_subplot(3, 1, 2)
         self.axes2 = self.fig.add_subplot(3,1,3)
@@ -82,6 +84,7 @@ class MyWindow(QMainWindow, Ui_MainWindow):
         self.music = []
         self.sr = 0
         self.time = []
+        self.data = []
         #画图测试
         self.widget = Mydemo(width=100000, height=5, dpi=100)
         self.verticalLayout.addWidget(self.widget)
@@ -90,6 +93,8 @@ class MyWindow(QMainWindow, Ui_MainWindow):
         self.beatnum = 0
         self.downbeatnum = 0
         self.wavedata = []
+        self.data = []
+        self.beatidx = []
         #self.widget.axes.plot(data)
         #print("start")
         self.cnt = 0
@@ -118,21 +123,28 @@ class MyWindow(QMainWindow, Ui_MainWindow):
         xminorLocator = MultipleLocator(20)
 
         str_data = self.wf.readframes(nframes)
+        #print("str data",str_data)
         self.wf.close()
         # 将波形数据转换为数组
-        wave_data = np.frombuffer(str_data, dtype=np.short)
-
-        wave_data.shape = -1, 2
-        wave_data = wave_data.T
+        #wave_data = np.fromstring(str_data, dtype=np.int16)
+        wave_data = np.fromstring(str_data, dtype=np.short)
         time = np.arange(0, nframes) * (1.0 / framerate)
         self.time = time
-        # 绘制波形
-        # plt.subplot(211)
-        #plt.plot(time, wave_data[0])
-        # plt.subplot(212)
         self.cnt = len(time)
-        self.wavedata = wave_data[0]
-        self.widget.axes.plot(time, wave_data[0],'b')
+        if nchannels==2:
+            wave_data.shape = -1, 2
+        wave_data = wave_data.T
+
+        if nchannels==2:
+            self.wavedata = wave_data[0]
+            self.widget.axes.plot(time, wave_data[0], 'b')
+        else:
+            self.wavedata = wave_data
+            self.widget.axes.plot(time,wave_data,'b')
+        #wave_data = wave_data * 1.0 / (max(abs(wave_data)))
+
+        #print("time",self.time.shape,"\nwave_data[0]",self.wavedata.shape)
+
         #print("time = ",self.time)
         #print(time)
         #ax = self.widget.axes.plot.xlim(0,500)
@@ -167,7 +179,7 @@ class MyWindow(QMainWindow, Ui_MainWindow):
 
             # 可视化部分wave
             self.wf = wave.open(self.fileName)
-
+            #print("wave data",self.wf)
             #self.music, self.sr = librosa.load(self.fileName)
 
             self.visualization()
@@ -188,23 +200,35 @@ class MyWindow(QMainWindow, Ui_MainWindow):
             self.startbtn.setText('播放')
 
     def btn_opendbtxt_click(self):
-        self.dbtxt, filetype = QFileDialog.getOpenFileName(self, '选择文件', '', '文本文件 (*.txt)')
-        if len(self.dbtxt) == 0:
-            return
-        data = np.loadtxt(self.dbtxt)
-        self.data = data
-        self.beatnum = len(data)
-        #print(data[:,0])
-        idx = np.argwhere(data[:,1]==1)
-        self.idx = idx
-        self.downbeatnum = len(idx)
-        for i in range(len(data)):
-            self.widget.axes1.axvline(data[i,0],color='r')
-            if i in idx:
-                self.widget.axes2.axvline(data[i,0],color='g')
+        self.dbtxt, filetype = QFileDialog.getOpenFileName(self, '选择文件', '', '文本文件 (*.txt; *.json)')
+        #print(filetype)
+        if self.dbtxt[-4:] == '.txt':
+            print(self.dbtxt)
+            if len(self.dbtxt) == 0:
+                return
+            data = np.loadtxt(self.dbtxt)
+            #print(len(data))
+            try:
+                idx = np.argwhere(data[:,1]==1)
+                self.idx = idx
+                self.downbeatnum = len(idx)
+                for i in range(len(data)):
+                    self.widget.axes1.axvline(data[i,0],color='r')
+                    if i in idx:
+                        self.widget.axes2.axvline(data[i,0],color='g')
+            except:
+                for i in range(len(data)):
+                    self.widget.axes1.axvline(data[i],color='r')
                 #self.widget.axes1.axvline(data[i, 0], color='black')
         #self.widget.axes2.scatter(data[idx,0],data[idx,1],s=1.0)
         #self.widget.axes1.plot(data[:,0],data[:,1],'g')
+        else:
+            #print(self.dbtxt)
+            #file = self.dbtxt[:-5] + '.json'
+            self.data = np.load(self.dbtxt)
+            #print(file)
+            self.data = self.data['markers']
+            print(self.data)
         self.widget.draw()
         #print(self.dbtxt)
     def player_timer(self):
@@ -216,29 +240,65 @@ class MyWindow(QMainWindow, Ui_MainWindow):
         self.lab_time.setText(time.strftime('%M:%S', time.localtime(self.player.position() / 1000)))
         #self.show_lab.setText(str(self.player.position()))
         #self.show_tim_lab.setText(str(self.slider_time.value()))
-        print(self.music_flag.text())
+        #print(self.music_flag.text())
         music_num = (self.player.position()/1000)//100+1
         print(self.player.duration()/1000)
-        if float(self.music_flag.text())!=music_num and len(self.time)!=0:
-            time_idx = np.argwhere(self.time<=music_num*100)
-            self.widget.axes.lines.remove(self.widget.axes.lines[0])
-            self.widget.axes.plot(self.time[time_idx],self.wavedata[time_idx],'b')
-            self.widget.axes.xlim(music_num*100-100,music_num*100)
-            self.music_flag.setText(str(music_num))
-            print("music num",music_num)
-        # if len(self.widget.axes.lines)>1:
-        #     #print("line1",self.widget.axes.lines[1])
-        #     self.widget.axes.lines.remove(self.widget.axes.lines[1])
+        print("play list:",self.player.playlist())
+        len1 = 0
+        len2 = 0
+        try:
+            if float(self.music_flag.text())!=music_num and len(self.time)!=0:
+                time_idx = np.argwhere(self.time<=music_num*100)
+                self.widget.axes.lines.remove(self.widget.axes.lines[0])
+                #self.widget.axes.clf()
+                self.widget.axes.plot(self.time[time_idx],self.wavedata[time_idx],'b')
+                #self.widget.axes.xlim(music_num*100-100,music_num*100)
+                self.widget.axes.set_xlim(music_num*100-100,music_num*100)
+                #self.widget.axes.axvline
+                #print('fig 1',len(self.widget.axes.lines))
+                #plt.xlim([music_num*100-100,music_num*100])
+                #self.music_flag.setText(str(music_num))
+                # print(data[:,0])
+
+                #self.widget.axes1.lines.remove(self.widget.axes1.lines[:-1])
+                #self.widget.axes2.lines.remove(self.widget.axes2.lines[:-1])
+                if len(self.data)!=0:
+                    try:
+                        self.beatidx = np.argwhere(self.data[:,0]<music_num*100)
+                    except:
+                        self.beatidx = np.argwhere(self.data < music_num * 100)
+                #print(self.beatidx)
+                self.widget.axes1.set_xlim(music_num * 100 - 100, music_num * 100)
+                self.widget.axes2.set_xlim(music_num * 100 - 100, music_num * 100)
+                try:
+                    if len(self.beatidx)!=0:
+                        for i in self.beatidx:
+                            self.widget.axes1.axvline(self.data[i, 0], color='r')
+                            if i in self.idx:
+                                self.widget.axes2.axvline(self.data[i, 0], color='g')
+                except:
+                    for i in range(len(self.data)):
+                        self.widget.axes1.axvline(self.data[i],color='r')
+                    print("error")
+        except:
+            print("error")
+            #print("music num",music_num)
+        if len(self.widget.axes.lines)>3:
+            #print("line1",len(self.widget.axes.lines))
+            self.widget.axes.lines.remove(self.widget.axes.lines[3])
         #     #print(self.widget.axes.lines[1])
-        # if len(self.widget.axes1.lines)>self.beatnum:
-        #     self.widget.axes1.lines.remove(self.widget.axes1.lines[self.beatnum])
-        # if len(self.widget.axes2.lines)>self.downbeatnum:
-        #     self.widget.axes2.lines.remove(self.widget.axes2.lines[self.downbeatnum])
+        #if len(self.widget.axes1.lines)>self.beatnum:
+            #print("line2",len(self.widget.axes1.lines))
+            #self.widget.axes1.lines.remove(self.widget.axes1.lines[self.beatnum])
+        #if len(self.widget.axes2.lines)>self.downbeatnum:
+            #print("line3", len(self.widget.axes2.lines))
+            #self.widget.axes2.lines.remove(self.widget.axes2.lines[self.downbeatnum])
             #print("axes2",len(self.widget.axes2.lines))
             #print("axe1",len(self.widget.axes1.lines))
-        # self.widget.axes.axvline(self.player.position()/1000)
-        # self.widget.axes1.axvline(self.player.position() / 1000)
-        # self.widget.axes2.axvline(self.player.position() / 1000)
+        self.widget.axes.axvline(self.player.position()/1000)
+        #print("axv line",len(self.widget.axes.lines))
+        #self.widget.axes1.axvline(self.player.position() / 1000)
+        #self.widget.axes2.axvline(self.player.position() / 1000)
             #print(self.widget.axes.lines)
             #print("time", self.player.position()/1000)
         #print("beatnum",self.beatnum)
